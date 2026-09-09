@@ -9,6 +9,7 @@ Auto-elevates to administrator if needed.
 import sys
 import os
 from pathlib import Path
+import ctypes
 
 # Auto-elevate to administrator on Windows
 try:
@@ -17,10 +18,20 @@ try:
         # Re-run this script with administrator privileges
         pyuac.runAsAdmin()
         sys.exit()
-except ImportError:
-    # pyuac not installed, continue anyway
-    # (Will show warning in GUI if not admin)
-    pass
+except (ImportError, AttributeError):
+    # pyuac not installed or failed, use alternative method
+    try:
+        if not ctypes.windll.shell.IsUserAnAdmin():
+            ctypes.windll.shell.ShellExecuteEx(
+                lpVerb='runas',
+                lpFile=sys.executable,
+                lpParameters=f'"{__file__}"',
+                lpDirectory=str(Path(__file__).parent)
+            )
+            sys.exit()
+    except Exception as e:
+        print(f"Warning: Could not elevate to admin: {e}")
+        pass
 
 # Add src directory to path
 sys.path.insert(0, str(Path(__file__).parent / "src"))
